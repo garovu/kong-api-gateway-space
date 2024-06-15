@@ -55,6 +55,9 @@ services:
       - KONG_ADMIN_ERROR_LOG=/dev/stderr
       - KONG_ADMIN_LISTEN=0.0.0.0:8001,0.0.0.0:8444 ssl
       - KONG_ADMIN_GUI_URL=http://localhost:8002
+      - KONG_DECLARATIVE_CONFIG=/etc/kong/kong.yaml
+    volumes:
+      - ./config/kong.yaml:/etc/kong/kong.yaml
     healthcheck:
       test: [ "CMD", "kong", "health" ]
       interval: 10s

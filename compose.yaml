@@ -1,0 +1,70 @@
+# Don't use this in production, it's just for testing purposes.
+# Check the official github repository for a production-ready setup.
+# https://github.com/Kong/docker-kong/tree/master/compose
+
+name: kong-compose
+services:
+  kong-database:
+    image: postgres:13
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=kong
+      - POSTGRES_DB=kong
+      - POSTGRES_PASSWORD=kongpass
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "pg_isready",
+          "-d",
+          "${KONG_PG_DATABASE:-kong}",
+          "-U",
+          "${KONG_PG_USER:-kong}",
+        ]
+      interval: 5s
+      timeout: 30s
+      retries: 3
+    restart: on-failure
+
+  kong-migration:
+    image: kong:3.7.0
+    command: kong migrations bootstrap
+    restart: on-failure
+    environment:
+      - KONG_DATABASE=postgres
+      - KONG_PG_HOST=kong-database
+      - KONG_PG_PASSWORD=kongpass
+
+  kong-gateway:
+    image: kong:3.7.0
+    ports:
+      - "8000:8000"
+      - "8443:8443"
+      - "127.0.0.1:8001:8001"
+      - "127.0.0.1:8002:8002"
+      - "127.0.0.1:8444:8444"
+    environment:
+      - KONG_DATABASE=postgres
+      - KONG_PG_HOST=kong-database
+      - KONG_PG_USER=kong
+      - KONG_PG_PASSWORD=kongpass
+      - KONG_PROXY_ACCESS_LOG=/dev/stdout
+      - KONG_ADMIN_ACCESS_LOG=/dev/stdout
+      - KONG_PROXY_ERROR_LOG=/dev/stderr
+      - KONG_ADMIN_ERROR_LOG=/dev/stderr
+      - KONG_ADMIN_LISTEN=0.0.0.0:8001,0.0.0.0:8444 ssl
+      - KONG_ADMIN_GUI_URL=http://localhost:8002
+    healthcheck:
+      test: [ "CMD", "kong", "health" ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    depends_on:
+      kong-database:
+        condition: service_healthy
+
+networks:
+  kong-net:
+    driver: bridge
+    external: false
